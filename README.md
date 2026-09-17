@@ -66,44 +66,6 @@ The language model is used primarily for translation. File extraction, progress 
 * **Custom terminology**
   A small terminology file can be maintained for terms that require consistent treatment throughout the book.
 
-## Translation Format
-
-The model sees lightweight Markdown such as:
-
-```markdown
-# Chapter 18
-
-<!--SEG:c18-p0104-->
-He looked at *Ilya* and said, "Don't do that." He had been waiting all night.
-
-<!--SEG:c18-p0105-->
-Ilya did not answer. For several seconds, neither of them moved.
-```
-
-SEG markers are structural anchors only.
-
-They do **not** mean that each paragraph or sentence is translated separately. A normal chapter is read and translated as one continuous context.
-
-The intended model operation is:
-
-```text
-Read Chapter 18
-        ↓
-Translate the complete Chapter 18
-        ↓
-Save Chapter 18
-        ↓
-Read Chapter 19
-```
-
-rather than:
-
-```text
-SEG 001 → translate
-SEG 002 → translate
-SEG 003 → translate
-...
-```
 
 ## Supported Inputs
 
@@ -293,47 +255,6 @@ HTML / EPUB / TXT / MD
 
 * **自定义术语库**
   可以维护自己的术语文件，用于保证需要固定处理的词汇在全书中的一致性。
-
-## 翻译中间格式
-
-模型实际读取的内容类似：
-
-```markdown
-# Chapter 18
-
-<!--SEG:c18-p0104-->
-He looked at *Ilya* and said, "Don't do that." He had been waiting all night.
-
-<!--SEG:c18-p0105-->
-Ilya did not answer. For several seconds, neither of them moved.
-```
-
-这里的 SEG 只是结构定位标记。
-
-它**不代表模型会逐段或逐句分别翻译**。正常情况下，一整章会作为同一个上下文被模型读取和翻译。
-
-实际流程是：
-
-```text
-读取 Chapter 18
-        ↓
-完整翻译 Chapter 18
-        ↓
-保存 Chapter 18
-        ↓
-读取 Chapter 19
-```
-
-而不是：
-
-```text
-SEG 001 → 翻译
-SEG 002 → 翻译
-SEG 003 → 翻译
-……
-```
-
-因此，SEG 的存在不会阻止模型理解同一章节前后的语境。
 
 ## 支持的输入格式
 
