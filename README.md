@@ -1,307 +1,180 @@
-# EPUB Translator V6 Lite
 
-一个面向 Codex 的轻量级长文本翻译 Skill，用于将 HTML、EPUB、TXT 或 Markdown 长文本按章节自动翻译，并最终生成 EPUB。
+# E-Book Translator
 
-A lightweight long-form translation skill for Codex. It translates HTML, EPUB, TXT, and Markdown books chapter by chapter and builds the completed translation as an EPUB.
+A lightweight Codex skill for long-form book translation.
 
-## 中文
+It translates books **chapter by chapter**, keeps model-facing text as simple as possible, and builds the completed translation into an EPUB.
 
-### 功能
-
-EPUB Translator V6 Lite 的核心目标是让自动长文本翻译尽可能接近手动逐章翻译：
-
-```text
-原文件
-  ↓
-提取章节
-  ↓
-轻量 Markdown
-  ↓
-逐章翻译
-  ↓
-保存译文
-  ↓
-自动进入下一章
-  ↓
-生成 EPUB
-```
-
-模型只负责真正需要语言理解的部分：
-
-```text
-读取一章 → 翻译一章 → 保存 → 下一章
-```
-
-文件解析、进度记录、结构校验和 EPUB 构建均由确定性脚本完成。
-
-### 支持格式
-
-输入支持：
-
-* HTML / HTM
-* EPUB
-* TXT
-* Markdown
-* PDF（有限支持，仅适用于能够可靠提取文本层的 PDF，不默认执行 OCR）
-
-默认输出为 EPUB。
-
-对于 HTML、TXT 和 Markdown，Skill 会直接提取正文，不会为了翻译先将源文件转换成 EPUB。
-
-### 翻译中间格式
-
-所有输入都会被转换成轻量 Markdown：
-
-```text
-work/
-├── units/
-│   ├── chapter01.md
-│   ├── chapter02.md
-│   └── chapter03.md
-├── translations/
-│   ├── chapter01.md
-│   ├── chapter02.md
-│   └── chapter03.md
-├── translation_profile.md
-├── terminology.json
-└── state.json
-```
-
-正文使用少量 `SEG` 标记保留结构定位：
-
-```markdown
-# Chapter 18
-
-<!--SEG:c18-p001-->
-He looked at *Ilya* and said, "Don't do that." He had been waiting all night.
-
-<!--SEG:c18-p002-->
-Ilya did not answer.
-```
-
-`SEG` 只是结构定位和校验标记，不是独立的翻译单元。正常情况下，Codex 会读取并翻译完整章节，而不是逐个 `SEG` 翻译。
-
-### 章节优先
-
-V6 默认采用 chapter-first 策略。
-
-正常章节保持完整：
-
-```text
-chapter01.md → chapter01.zh
-chapter02.md → chapter02.zh
-chapter03.md → chapter03.zh
-```
-
-不会为了控制任务大小而预先把章节拆成大量 batch 或 JSON。
-
-只有实际遇到上下文或输出长度限制时，才将超长章节按自然段边界拆成少量较大的部分，并保留上一部分的少量上下文。
-
-### 试译
-
-默认情况下，Skill 会先翻译第一篇具有实质内容的章节，并生成试读 EPUB。
-
-流程为：
-
-```text
-准备源文件
-→ 翻译第一章
-→ 保存译文
-→ 生成 Preview EPUB
-→ 等待用户确认
-```
-
-确认翻译风格后，更新 `translation_profile.md`，Skill 即可继续后续章节。
-
-如果不需要试译，也可以明确要求跳过 Preview。
-
-### 翻译规则
-
-通用规则保存在 Skill 中，而具体作品的翻译要求写入：
-
-```text
-translation_profile.md
-```
-
-例如：
-
-```markdown
-Target: Simplified Chinese
-
-## Book-specific rules
-
-- 人名保持英文原文。
-- 俄语内容采用括号形式处理。
-- 保留原文中的语言差异。
-- 保留斜体表达。
-```
-
-这样无需为了某一本书修改整个 Skill。
-
-术语表保存在：
-
-```text
-terminology.json
-```
-
-例如：
-
-```json
-{
-  "The Other Side": "彼岸",
-  "Black Forest": "黑森林"
-}
-```
-
-术语库只用于需要跨章节保持一致的专有词汇，不需要记录普通词汇。
-
-### Token 优化
-
-V6 避免在翻译之外重复消耗模型上下文：
-
-* 不把整本书一次性加载进模型。
-* 不重复读取已经完成的章节。
-* 不将正文转换成 JSON。
-* 不生成 translated batch JSON。
-* 不让模型负责章节拼接。
-* HTML / TXT / MD 输入不会先生成中间 EPUB。
-* 不对每一章执行额外的模型 QA。
-* 不主动把普通章节切成多个小 batch。
-* context compaction 后只恢复必要状态、翻译规则、少量上下文和下一章。
-
-因此正文在正常生产流程中只需要经过模型一次。
-
-### 最终流程
-
-```text
-HTML / EPUB / TXT / MD
-          ↓
-      prepare.py
-          ↓
-  chapter01.md
-  chapter02.md
-  chapter03.md
-          ↓
-       Codex
-          ↓
-translations/
-  chapter01.md
-  chapter02.md
-  chapter03.md
-          ↓
-    build_epub.py
-          ↓
-      book.zh.epub
-```
+**English** | [中文](#中文说明)
 
 ---
 
-## English
+## Overview
 
-### Overview
+ E-Book Translator is designed for translating long-form fiction and other book-length texts with Codex while minimizing unnecessary model operations.
 
-EPUB Translator V6 Lite is designed to make automated long-form translation behave as closely as possible to manual chapter-by-chapter translation.
-
-Its core workflow is intentionally simple:
+The core workflow is intentionally simple:
 
 ```text
-Source
-  ↓
+HTML / EPUB / TXT / MD
+        ↓
 Extract chapters
-  ↓
-Lightweight Markdown
-  ↓
-Translate one chapter
-  ↓
-Save
-  ↓
-Continue automatically
-  ↓
+        ↓
+Lightweight Markdown + SEG markers
+        ↓
+Translate one chapter at a time
+        ↓
+Save translated chapters
+        ↓
 Build EPUB
+````
+
+The language model is used primarily for translation. File extraction, progress tracking, structural validation, and EPUB generation are handled by deterministic scripts.
+
+## Features
+
+* **Chapter-first translation**
+  Normal chapters are translated as a whole so the model retains chapter-level context.
+
+* **Low-overhead intermediate format**
+  Book content is presented to the model as lightweight Markdown rather than raw HTML, XHTML, or JSON.
+
+* **Minimal SEG markers**
+  SEG markers preserve structural correspondence without turning paragraphs into independent translation tasks.
+
+* **No prose-bearing JSON**
+  JSON is used only for lightweight state and metadata. Source text and translations remain in Markdown.
+
+* **Direct HTML input**
+  HTML files are parsed directly. They are not converted to EPUB before translation.
+
+* **Multiple input formats**
+  Supports HTML, EPUB, TXT, and Markdown as standard inputs.
+
+* **EPUB output**
+  Completed translations are assembled into a standard EPUB.
+
+* **Preview-first workflow**
+  The first substantial chapter can be translated as a preview before the rest of the book is processed.
+
+* **Resume support**
+  Completed chapters are checkpointed so an interrupted translation can continue from the next unfinished chapter.
+
+* **Book-specific translation profiles**
+  Translation rules for a particular book can be stored separately without making the core skill increasingly complex.
+
+* **Custom terminology**
+  A small terminology file can be maintained for terms that require consistent treatment throughout the book.
+
+## Translation Format
+
+The model sees lightweight Markdown such as:
+
+```markdown
+# Chapter 18
+
+<!--SEG:c18-p0104-->
+He looked at *Ilya* and said, "Don't do that." He had been waiting all night.
+
+<!--SEG:c18-p0105-->
+Ilya did not answer. For several seconds, neither of them moved.
 ```
 
-The language model handles only the work that actually requires language understanding:
+SEG markers are structural anchors only.
+
+They do **not** mean that each paragraph or sentence is translated separately. A normal chapter is read and translated as one continuous context.
+
+The intended model operation is:
 
 ```text
-Read one chapter → Translate one chapter → Save → Next chapter
+Read Chapter 18
+        ↓
+Translate the complete Chapter 18
+        ↓
+Save Chapter 18
+        ↓
+Read Chapter 19
 ```
 
-Extraction, progress tracking, structural validation, and EPUB construction are handled by deterministic scripts.
+rather than:
 
-### Supported Inputs
+```text
+SEG 001 → translate
+SEG 002 → translate
+SEG 003 → translate
+...
+```
 
-Standard inputs:
+## Supported Inputs
 
-* HTML / HTM
-* EPUB
-* TXT
-* Markdown
-* PDF with limitations; only text-layer PDFs are supported when text can be extracted reliably. OCR is not performed by default.
+| Format     | Support | Processing                                                  |
+| ---------- | ------- | ----------------------------------------------------------- |
+| HTML / HTM | Yes     | Parsed directly into chapters                               |
+| EPUB       | Yes     | Reads book XHTML content directly                           |
+| TXT        | Yes     | Detects chapter-like headings when possible                 |
+| Markdown   | Yes     | Preserves lightweight text structure                        |
+| PDF        | Limited | Text-layer extraction only; OCR is not performed by default |
 
-The standard output is EPUB.
+Regardless of the source format, translation uses the same chapter-based Markdown workflow.
 
-HTML, TXT, and Markdown sources are parsed directly. They are not converted to an intermediate EPUB before translation.
+## Installation
 
-### Translation Representation
+Download or clone this repository and install the `epub-translator` folder as a Codex skill.
 
-All supported inputs are normalized into lightweight Markdown chapters:
+The skill folder should contain:
+
+```text
+epub-translator/
+├── SKILL.md
+├── README.md
+├── references/
+│   ├── translation_profile.template.md
+│   └── terminology.template.json
+└── scripts/
+    ├── prepare.py
+    ├── next_chapter.py
+    ├── save_translation.py
+    ├── previous_context.py
+    ├── approve_preview.py
+    ├── build_epub.py
+    ├── validate.py
+    └── common.py
+```
+
+Start a new Codex session after installing or replacing the skill to avoid carrying an older translation workflow in the existing context.
+
+## Usage
+
+Provide Codex with a supported book file and ask it to translate the book using the skill.
+
+For example:
+
+```text
+Use epub-translator to translate this book into Simplified Chinese.
+Translate the first chapter as a preview and stop for my review.
+```
+
+The skill prepares the source into:
 
 ```text
 work/
 ├── units/
 │   ├── chapter01.md
 │   ├── chapter02.md
-│   └── chapter03.md
+│   └── ...
 ├── translations/
-│   ├── chapter01.md
-│   ├── chapter02.md
-│   └── chapter03.md
 ├── translation_profile.md
 ├── terminology.json
 └── state.json
 ```
 
-Minimal `SEG` anchors preserve structural references:
+After the preview is approved, Codex can continue chapter by chapter until the book is complete.
 
-```markdown
-# Chapter 18
+The final EPUB is generated only after translation is complete, rather than repeatedly converting between HTML, EPUB, JSON, and Markdown during translation.
 
-<!--SEG:c18-p001-->
-He looked at *Ilya* and said, "Don't do that." He had been waiting all night.
+## Translation Profile
 
-<!--SEG:c18-p002-->
-Ilya did not answer.
-```
-
-A `SEG` marker is a reconstruction and validation anchor, not an independent translation request. Codex normally reads and translates the entire chapter in one context.
-
-### Chapter-first Translation
-
-V6 follows a chapter-first strategy.
-
-Normal chapters remain intact rather than being proactively divided into small batches or JSON translation objects.
-
-A chapter is split only when an actual context or output limitation makes whole-chapter translation impractical. When necessary, splitting occurs between natural paragraph boundaries and produces only a small number of large parts.
-
-### Preview Workflow
-
-By default, the skill first translates one substantial chapter and builds a preview EPUB:
-
-```text
-Prepare source
-→ Translate first chapter
-→ Save translation
-→ Build preview EPUB
-→ Wait for review
-```
-
-After the translation style is approved, book-specific requirements can be added to `translation_profile.md` and production translation continues automatically.
-
-The preview step can also be explicitly skipped.
-
-### Translation Profiles
-
-General translation behavior belongs to the skill. Requirements specific to an individual book belong in:
+Book-specific translation requirements belong in:
 
 ```text
 translation_profile.md
@@ -310,19 +183,23 @@ translation_profile.md
 For example:
 
 ```markdown
+# Translation profile
+
 Target: Simplified Chinese
 
 ## Book-specific rules
 
 - Keep personal names in their original English form.
-- Render Russian passages using parentheses.
-- Preserve distinctions between languages in the source.
-- Preserve meaningful italics.
+- Preserve paragraph structure.
+- Render Russian dialogue according to the convention defined for this book.
+- Do not add translator notes unless explicitly requested.
 ```
 
-This keeps the core skill general while allowing different books to use different translation strategies.
+This keeps special rules separate from the general-purpose skill.
 
-Selective terminology is stored in:
+## Terminology
+
+Optional terminology can be stored in:
 
 ```text
 terminology.json
@@ -332,52 +209,257 @@ For example:
 
 ```json
 {
-  "The Other Side": "彼岸",
-  "Black Forest": "黑森林"
+  "Black Sea": "黑海",
+  "Federal Security Service": "联邦安全局"
 }
 ```
 
-The terminology file is intended for recurring terms that require cross-chapter consistency, not ordinary vocabulary.
+The terminology file should remain selective. It is intended for terms whose translation must remain consistent, rather than ordinary vocabulary.
 
-### Token Efficiency
+## Design Principle
 
-V6 minimizes model work outside the translation itself:
+The skill aims to keep automated book translation close to the simplest manual workflow:
 
-* Never load the entire book into model context.
-* Never reread completed chapters.
-* Never store source or translated prose in JSON.
-* Never create translated JSON batches.
-* Never use the model to merge completed chapters.
-* Never create an intermediate EPUB for HTML, TXT, or Markdown sources.
-* Avoid model-based QA after every chapter.
-* Do not proactively divide ordinary chapters into small batches.
-* After context compaction, reload only essential state, translation rules, minimal continuity context, and the next chapter.
+```text
+read one chapter
+→ translate one chapter
+→ save
+→ continue
+```
 
-Under the normal production workflow, book prose should pass through the model only once.
+Formatting and file-management tasks are handled outside the model wherever possible.
 
-### Final Pipeline
+---
+
+# 中文说明
+
+[English](# E-Book Translator) | **中文**
+
+## 简介
+
+ E-Book Translator 是一个面向 Codex 的轻量级长篇文本翻译 Skill。
+
+它的主要目标是让自动翻译一本书的过程尽可能接近人工操作时最简单的“逐章翻译”方式，同时自动完成章节提取、进度记录、结构校验和 EPUB 生成。
+
+核心流程为：
 
 ```text
 HTML / EPUB / TXT / MD
-          ↓
-      prepare.py
-          ↓
-  chapter01.md
-  chapter02.md
-  chapter03.md
-          ↓
-       Codex
-          ↓
-translations/
-  chapter01.md
-  chapter02.md
-  chapter03.md
-          ↓
-    build_epub.py
-          ↓
-      book.zh.epub
+        ↓
+提取章节
+        ↓
+轻量 Markdown + SEG 标记
+        ↓
+逐章翻译
+        ↓
+保存译文章节
+        ↓
+生成 EPUB
 ```
 
-The design principle is deliberately minimal:
+大模型主要负责真正需要语言理解的翻译工作，其余格式转换和文件操作尽可能由确定性的脚本完成。
 
-**one chapter, one translation pass, one checkpoint, then continue.**
+## 主要功能
+
+* **整章优先翻译**
+  正常长度的章节默认作为完整上下文交给模型翻译，以保留章节内部的语境、人物关系和叙事连续性。
+
+* **轻量中间格式**
+  模型读取的是接近纯文本的 Markdown，而不是包含大量标签的 HTML/XHTML 或 JSON。
+
+* **轻量 SEG 标记**
+  SEG 用于记录文本结构和位置，但不会把段落变成彼此独立的翻译任务。
+
+* **正文不进入 JSON**
+  JSON 只保存少量运行状态和元数据，不保存原文和译文正文。
+
+* **HTML 直接处理**
+  HTML 输入会直接提取章节，不会为了开始翻译而先转换成 EPUB。
+
+* **支持多种输入格式**
+  标准支持 HTML、EPUB、TXT 和 Markdown。
+
+* **统一输出 EPUB**
+  翻译完成后自动将各章节构建为 EPUB。
+
+* **先试译再继续**
+  默认可以先翻译第一篇有效章节作为试读，确认翻译风格和规则后再继续整本翻译。
+
+* **支持断点续翻**
+  已完成章节会被记录，中断后可以从下一篇未完成章节继续。
+
+* **独立翻译 Profile**
+  针对某一本书的特殊翻译要求保存在独立文件中，不需要不断修改通用 Skill。
+
+* **自定义术语库**
+  可以维护自己的术语文件，用于保证需要固定处理的词汇在全书中的一致性。
+
+## 翻译中间格式
+
+模型实际读取的内容类似：
+
+```markdown
+# Chapter 18
+
+<!--SEG:c18-p0104-->
+He looked at *Ilya* and said, "Don't do that." He had been waiting all night.
+
+<!--SEG:c18-p0105-->
+Ilya did not answer. For several seconds, neither of them moved.
+```
+
+这里的 SEG 只是结构定位标记。
+
+它**不代表模型会逐段或逐句分别翻译**。正常情况下，一整章会作为同一个上下文被模型读取和翻译。
+
+实际流程是：
+
+```text
+读取 Chapter 18
+        ↓
+完整翻译 Chapter 18
+        ↓
+保存 Chapter 18
+        ↓
+读取 Chapter 19
+```
+
+而不是：
+
+```text
+SEG 001 → 翻译
+SEG 002 → 翻译
+SEG 003 → 翻译
+……
+```
+
+因此，SEG 的存在不会阻止模型理解同一章节前后的语境。
+
+## 支持的输入格式
+
+| 格式         | 支持情况 | 处理方式                    |
+| ---------- | ---- | ----------------------- |
+| HTML / HTM | 支持   | 直接解析并识别章节               |
+| EPUB       | 支持   | 直接读取书籍中的 XHTML 内容       |
+| TXT        | 支持   | 尽可能根据章节标题识别结构           |
+| Markdown   | 支持   | 保留轻量文本结构                |
+| PDF        | 有限支持 | 仅考虑已有文本层的 PDF，默认不执行 OCR |
+
+无论原始文件是什么格式，进入翻译阶段后都会采用统一的章节 Markdown 工作流。
+
+## 安装
+
+下载或克隆本仓库，将 `epub-translator` 文件夹作为 Codex Skill 安装。
+
+完整目录结构如下：
+
+```text
+epub-translator/
+├── SKILL.md
+├── README.md
+├── references/
+│   ├── translation_profile.template.md
+│   └── terminology.template.json
+└── scripts/
+    ├── prepare.py
+    ├── next_chapter.py
+    ├── save_translation.py
+    ├── previous_context.py
+    ├── approve_preview.py
+    ├── build_epub.py
+    ├── validate.py
+    └── common.py
+```
+
+如果刚刚替换过旧版本 Skill，建议新建一个 Codex Session 再开始新的翻译任务，避免当前上下文继续沿用旧版本的工作流程。
+
+## 使用方法
+
+向 Codex 提供需要翻译的书籍文件，并要求使用 `epub-translator`。
+
+例如：
+
+```text
+使用 epub-translator 将这本书翻译成简体中文。
+先翻译第一章作为试读，完成后停止，等我确认翻译规则。
+```
+
+Skill 会将原始文件整理为：
+
+```text
+work/
+├── units/
+│   ├── chapter01.md
+│   ├── chapter02.md
+│   └── ...
+├── translations/
+├── translation_profile.md
+├── terminology.json
+└── state.json
+```
+
+确认试译后，可以继续逐章翻译，直到整本书完成。
+
+最终 EPUB 在翻译完成后统一生成，不需要在翻译过程中反复执行 HTML → EPUB → XHTML → Markdown 等转换。
+
+## 翻译 Profile
+
+针对某一本书的特殊规则写入：
+
+```text
+translation_profile.md
+```
+
+例如：
+
+```markdown
+# Translation profile
+
+Target: Simplified Chinese
+
+## Book-specific rules
+
+- 人名保持英文原文。
+- 保留原文段落结构。
+- 俄语对白按照本书约定的方式处理。
+- 除非明确要求，否则不添加译者注。
+```
+
+这样可以把“这一本书的特殊要求”和 Skill 本身的通用翻译流程分开。
+
+换一本书时，只需要更换 Profile，而不需要修改整个 Skill。
+
+## 自定义术语库
+
+需要固定翻译的术语可以保存在：
+
+```text
+terminology.json
+```
+
+例如：
+
+```json
+{
+  "Black Sea": "黑海",
+  "Federal Security Service": "联邦安全局"
+}
+```
+
+术语库不需要收录所有词汇。它主要用于保存那些需要在不同章节之间保持一致、容易产生歧义或具有特定译法的词。
+
+## 设计原则
+
+V6 Lite 尽量让自动翻译一本书接近最简单的人工逐章翻译：
+
+```text
+读取一章
+→ 翻译一章
+→ 保存
+→ 下一章
+```
+
+能够由脚本完成的格式处理、文件管理和结构校验尽可能不交给大模型处理，从而让模型上下文主要用于真正的翻译工作。
+
+```
+```
