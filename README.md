@@ -193,7 +193,7 @@ Formatting and file-management tasks are handled outside the model wherever poss
 
 ---
 <a id="chinese"></a>
-# 中文说明
+# E-Book Translator
 
 [English](#english) | **中文**
 
@@ -382,5 +382,3 @@ V6 Lite 尽量让自动翻译一本书接近最简单的人工逐章翻译：
 
 能够由脚本完成的格式处理、文件管理和结构校验尽可能不交给大模型处理，从而让模型上下文主要用于真正的翻译工作。
 
-```
-```
