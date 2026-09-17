@@ -1,11 +1,11 @@
-
+<a id="english"></a>
 # E-Book Translator
 
 A lightweight Codex skill for long-form book translation.
 
 It translates books **chapter by chapter**, keeps model-facing text as simple as possible, and builds the completed translation into an EPUB.
 
-**English** | [中文](#中文说明)
+**English** | [中文](#chinese)
 
 ---
 
@@ -192,10 +192,10 @@ read one chapter
 Formatting and file-management tasks are handled outside the model wherever possible.
 
 ---
-
+<a id="chinese"></a>
 # 中文说明
 
-[English](# E-Book Translator) | **中文**
+[English](#english) | **中文**
 
 ## 简介
 
