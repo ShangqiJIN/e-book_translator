@@ -41,10 +41,11 @@ Unless explicitly skipped, translate the first substantial chapter, save it, bui
 1. Run `next_chapter.py`.
 2. Read only that chapter, concise profile, selective terminology, and a small previous tail if useful.
 3. Translate the entire chapter directly to `translations/chapterNN.md`.
-4. Run `save_translation.py`.
-5. Continue immediately.
+4. During translation, if a new recurring, ambiguous, or book-specific term requires a stable translation across later chapters, append only that term and its chosen translation to `terminology.json`. Do not perform a separate terminology-review pass. Do not add ordinary vocabulary, personal names already covered by the profile, or terms whose translation is obvious and does not require cross-chapter consistency.
+5. Run `save_translation.py`.
+6. Continue immediately.
 
-Do not reread completed chapters. Do not narrate routine file operations. Do not perform model QA after every chapter.
+Do not reread completed chapters. Do not narrate routine file operations. Do not perform model QA or a separate terminology-extraction pass after every chapter.
 
 ## Long chapters
 
